@@ -41,6 +41,8 @@ export function ApiKeysTab() {
           models: (p as any).models && (p as any).models.length > 0 ? (p as any).models : p.model ? [p.model] : [],
           defaultModel: (p as any).defaultModel || p.model || "",
           enabled: p.enabled ?? false,
+          customUrl: (p as any).customUrl || "",
+          method: (p as any).method || "POST",
         };
       }
       setProviders(normalizedProviders);
@@ -61,12 +63,20 @@ export function ApiKeysTab() {
     setProviders(next);
     await UpdateConfig({ providers: next });
     if (config) {
-      patchConfig({ providers: next });
+      patchConfig({ providers: next as any });
     }
   };
 
   const handleApiKeyChange = async (id: string, apiKey: string) => {
     await saveProvider(id, { ...providers[id], apiKey });
+  };
+
+  const handleCustomUrlChange = async (id: string, customUrl: string) => {
+    await saveProvider(id, { ...providers[id], customUrl });
+  };
+
+  const handleMethodChange = async (id: string, method: string) => {
+    await saveProvider(id, { ...providers[id], method });
   };
 
   const handleToggleEnabled = async (id: string) => {
@@ -171,6 +181,8 @@ export function ApiKeysTab() {
             models: [provider.defaultModel],
             defaultModel: provider.defaultModel,
             enabled: false,
+            customUrl: provider.baseUrl || "",
+            method: "POST",
           };
           const isTested = testResults[id];
           const modelList = config.models.length > 0 ? config.models : [config.model || provider.defaultModel].filter(Boolean);
@@ -209,6 +221,39 @@ export function ApiKeysTab() {
               </div>
 
               <div className="space-y-2">
+                {id === "custom" && (
+                  <>
+                    <input
+                      type="text"
+                      value={config.customUrl || ""}
+                      onChange={(e) => handleCustomUrlChange(id, e.target.value)}
+                      placeholder="API Base URL (e.g. https://api.gollm.cloud)"
+                      className="w-full h-8 px-3 rounded-md border border-border bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-foreground/20 font-mono"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleMethodChange(id, "POST")}
+                        className={`h-8 px-3 rounded-md text-xs border transition-colors ${
+                          config.method === "POST"
+                            ? "bg-foreground text-background border-foreground"
+                            : "border-border hover:bg-foreground/5"
+                        }`}
+                      >
+                        POST
+                      </button>
+                      <button
+                        onClick={() => handleMethodChange(id, "GET")}
+                        className={`h-8 px-3 rounded-md text-xs border transition-colors ${
+                          config.method === "GET"
+                            ? "bg-foreground text-background border-foreground"
+                            : "border-border hover:bg-foreground/5"
+                        }`}
+                      >
+                        GET
+                      </button>
+                    </div>
+                  </>
+                )}
                 <input
                   type="password"
                   value={config.apiKey}

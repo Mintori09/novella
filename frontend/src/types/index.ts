@@ -4,6 +4,8 @@ export interface ProviderConfig {
   models: string[];
   defaultModel: string;
   enabled: boolean;
+  customUrl: string;
+  method: string;
 }
 
 export interface AppConfig {

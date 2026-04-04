@@ -126,6 +126,12 @@ func (a *App) UpdateConfig(updates map[string]interface{}) error {
 					if enabled, ok := pm["enabled"].(bool); ok {
 						prov.Enabled = enabled
 					}
+					if customUrl, ok := pm["customUrl"].(string); ok {
+						prov.CustomURL = customUrl
+					}
+					if method, ok := pm["method"].(string); ok {
+						prov.Method = method
+					}
 					cfg.Providers[id] = prov
 				}
 			}
@@ -169,6 +175,13 @@ func (a *App) GetProviders() map[string]models.APIProvider {
 			BaseURL:      "https://generativelanguage.googleapis.com/v1beta/openai",
 			DefaultModel: "gemini-2.0-flash",
 			APIKeyEnv:    "GEMINI_API_KEY",
+		},
+		"custom": {
+			ID:           "custom",
+			Name:         "Custom API",
+			BaseURL:      "",
+			DefaultModel: "",
+			APIKeyEnv:    "CUSTOM_API_KEY",
 		},
 	}
 }

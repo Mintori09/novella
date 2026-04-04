@@ -6,6 +6,8 @@ type ProviderConfig struct {
 	Models       []string `json:"models"`
 	DefaultModel string   `json:"defaultModel"`
 	Enabled      bool     `json:"enabled"`
+	CustomURL    string   `json:"customUrl"`
+	Method       string   `json:"method"`
 }
 
 type AppConfig struct {

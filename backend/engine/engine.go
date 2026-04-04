@@ -141,6 +141,17 @@ func (e *Engine) getProvider() (provider.Provider, models.ProviderConfig, error)
 		p := provider.NewGeminiProvider()
 		e.provider = p
 		return p, provCfg, nil
+	case "custom":
+		if provCfg.CustomURL == "" {
+			return nil, provCfg, fmt.Errorf("custom provider requires a URL")
+		}
+		method := provCfg.Method
+		if method == "" {
+			method = "POST"
+		}
+		p := provider.NewCustomProvider(provCfg.CustomURL, method)
+		e.provider = p
+		return p, provCfg, nil
 	default:
 		return nil, provCfg, fmt.Errorf("unknown provider: %s", activeID)
 	}
@@ -538,6 +549,16 @@ func (e *Engine) TestProviderConnection(ctx context.Context, providerID string, 
 		p = provider.NewGroqProvider()
 	case "gemini":
 		p = provider.NewGeminiProvider()
+	case "custom":
+		if provCfg, ok := e.cfgManager.Get().Providers["custom"]; ok && provCfg.CustomURL != "" {
+			method := provCfg.Method
+			if method == "" {
+				method = "POST"
+			}
+			p = provider.NewCustomProvider(provCfg.CustomURL, method)
+		} else {
+			return &models.TestConnectionResult{Success: false, Message: "Custom provider URL not configured"}, nil
+		}
 	default:
 		return &models.TestConnectionResult{Success: false, Message: "Unknown provider"}, nil
 	}
