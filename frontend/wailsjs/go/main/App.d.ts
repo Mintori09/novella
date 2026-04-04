@@ -11,6 +11,8 @@ export function CancelTask(arg1:string):Promise<void>;
 
 export function ClearCache():Promise<void>;
 
+export function DirectoryExists(arg1:string):Promise<boolean>;
+
 export function GetCacheInfo():Promise<main.CacheInfo>;
 
 export function GetCacheSize():Promise<number>;
@@ -47,7 +49,7 @@ export function SelectFiles():Promise<Array<string>>;
 
 export function StopAll():Promise<void>;
 
-export function TestConnection(arg1:string,arg2:string):Promise<models.TestConnectionResult>;
+export function TestConnection(arg1:string,arg2:string,arg3:string):Promise<models.TestConnectionResult>;
 
 export function TranslateFile(arg1:string,arg2:string):Promise<void>;
 

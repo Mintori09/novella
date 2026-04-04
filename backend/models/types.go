@@ -1,9 +1,11 @@
 package models
 
 type ProviderConfig struct {
-	APIKey  string `json:"apiKey"`
-	Model   string `json:"model"`
-	Enabled bool   `json:"enabled"`
+	APIKey       string   `json:"apiKey"`
+	Model        string   `json:"model"`
+	Models       []string `json:"models"`
+	DefaultModel string   `json:"defaultModel"`
+	Enabled      bool     `json:"enabled"`
 }
 
 type AppConfig struct {

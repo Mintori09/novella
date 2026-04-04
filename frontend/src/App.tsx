@@ -77,7 +77,20 @@ export default function App() {
   useEffect(() => {
     GetConfig()
       .then((cfg) => {
-        setConfig(cfg);
+        const normalized = {
+          ...cfg,
+          providers: Object.fromEntries(
+            Object.entries(cfg.providers || {}).map(([id, p]) => [
+              id,
+              {
+                ...p,
+                models: (p as any).models || (p as any).model ? [(p as any).model] : [],
+                defaultModel: (p as any).defaultModel || (p as any).model || "",
+              },
+            ])
+          ),
+        };
+        setConfig(normalized as any);
         if (cfg.theme) {
           setTheme(cfg.theme);
           document.documentElement.classList.toggle(

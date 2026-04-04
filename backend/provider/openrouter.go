@@ -221,9 +221,9 @@ func (p *OpenRouterProvider) StreamContent(ctx context.Context, prompt string, c
 	return ch, errCh
 }
 
-func (p *OpenRouterProvider) TestConnection(ctx context.Context, apiKey string) error {
+func (p *OpenRouterProvider) TestConnection(ctx context.Context, apiKey string, model string) error {
 	reqBody := openRouterRequest{
-		Model: "google/gemini-2.0-flash-exp:free",
+		Model: model,
 		Messages: []message{
 			{Role: "user", Content: "test"},
 		},

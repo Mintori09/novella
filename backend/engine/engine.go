@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -60,6 +62,23 @@ func calcProgress(processedChars, totalChars int, isReviewing bool, enableReview
 	return 70 + (translatePct * 30)
 }
 
+var rateLimitRegex = regexp.MustCompile(`(?i)(?:try again in|retry after)[\s:]*([\d.]+)s?`)
+
+func isRateLimit(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "429") || strings.Contains(msg, "rate limit") || strings.Contains(msg, "rate_limit")
+}
+
+func getRateLimitDelay(err error) time.Duration {
+	msg := err.Error()
+	if matches := rateLimitRegex.FindStringSubmatch(msg); len(matches) > 1 {
+		if seconds, parseErr := strconv.ParseFloat(matches[1], 64); parseErr == nil {
+			return time.Duration(seconds*1000+500) * time.Millisecond
+		}
+	}
+	return 10 * time.Second
+}
+
 func (e *Engine) loadPrompt(genre string) (systemPrompt string, genrePrompt string, err error) {
 	cfg := e.cfgManager.Get()
 
@@ -112,6 +131,14 @@ func (e *Engine) getProvider() (provider.Provider, models.ProviderConfig, error)
 		return p, provCfg, nil
 	case "openai":
 		p := provider.NewOpenAIProvider()
+		e.provider = p
+		return p, provCfg, nil
+	case "groq":
+		p := provider.NewGroqProvider()
+		e.provider = p
+		return p, provCfg, nil
+	case "gemini":
+		p := provider.NewGeminiProvider()
 		e.provider = p
 		return p, provCfg, nil
 	default:
@@ -314,9 +341,15 @@ func (e *Engine) translateSingleFile(ctx context.Context, inputPath string, genr
 
 			lastErr = err
 			if attempt < maxRetries {
-				backoff := time.Duration(1<<uint(attempt)) * time.Second
-				e.emitProgress(ctx, taskID, fileName, "retrying", i+1, len(chunks), processedChars, totalChars, false, progress, fmt.Sprintf("retry %d/%d", attempt+1, maxRetries))
-				time.Sleep(backoff)
+				if isRateLimit(err) {
+					delay := getRateLimitDelay(err)
+					e.emitProgress(ctx, taskID, fileName, "retrying", i+1, len(chunks), processedChars, totalChars, false, progress, fmt.Sprintf("rate limited, waiting %v", delay.Round(time.Second)))
+					time.Sleep(delay)
+				} else {
+					backoff := time.Duration(1<<uint(attempt)) * time.Second
+					e.emitProgress(ctx, taskID, fileName, "retrying", i+1, len(chunks), processedChars, totalChars, false, progress, fmt.Sprintf("retry %d/%d", attempt+1, maxRetries))
+					time.Sleep(backoff)
+				}
 			}
 		}
 
@@ -380,8 +413,13 @@ func (e *Engine) translateSingleFile(ctx context.Context, inputPath string, genr
 			}
 			lastErr = err
 			if attempt < maxRetries {
-				backoff := time.Duration(1<<uint(attempt)) * time.Second
-				time.Sleep(backoff)
+				if isRateLimit(err) {
+					delay := getRateLimitDelay(err)
+					time.Sleep(delay)
+				} else {
+					backoff := time.Duration(1<<uint(attempt)) * time.Second
+					time.Sleep(backoff)
+				}
 			}
 		}
 
@@ -444,12 +482,12 @@ func (e *Engine) TranslateFiles(ctx context.Context, paths []string, genre strin
 	var wg sync.WaitGroup
 
 	for _, path := range paths {
+		sem <- struct{}{}
 		wg.Add(1)
 		go func(p string) {
 			defer wg.Done()
-			sem <- struct{}{}
+			defer func() { <-sem }()
 			e.translateSingleFile(ctx, p, genre)
-			<-sem
 		}(path)
 	}
 	wg.Wait()
@@ -487,7 +525,7 @@ func (e *Engine) GetTasks() []*models.TranslationTask {
 	return tasks
 }
 
-func (e *Engine) TestProviderConnection(ctx context.Context, providerID string, apiKey string) (*models.TestConnectionResult, error) {
+func (e *Engine) TestProviderConnection(ctx context.Context, providerID string, apiKey string, model string) (*models.TestConnectionResult, error) {
 	var p provider.Provider
 	switch providerID {
 	case "kilo":
@@ -496,11 +534,15 @@ func (e *Engine) TestProviderConnection(ctx context.Context, providerID string, 
 		p = provider.NewOpenRouterProvider()
 	case "openai":
 		p = provider.NewOpenAIProvider()
+	case "groq":
+		p = provider.NewGroqProvider()
+	case "gemini":
+		p = provider.NewGeminiProvider()
 	default:
 		return &models.TestConnectionResult{Success: false, Message: "Unknown provider"}, nil
 	}
 
-	err := p.TestConnection(ctx, apiKey)
+	err := p.TestConnection(ctx, apiKey, model)
 	if err != nil {
 		return &models.TestConnectionResult{Success: false, Message: err.Error()}, nil
 	}

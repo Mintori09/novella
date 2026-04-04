@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { GetConfig, GetGenreList, ListDirectory, SelectDirectory, TranslateFiles, CancelTask, StopAll, ProcessDroppedFiles } from '../../../wailsjs/go/main/App'
+import { GetConfig, GetGenreList, ListDirectory, SelectDirectory, TranslateFiles, CancelTask, StopAll, ProcessDroppedFiles, UpdateConfig, DirectoryExists } from '../../../wailsjs/go/main/App'
 import { useAppStore } from '../../store/appStore'
 import type { FileInfo, GenrePrompt } from '../../types'
 import { StreamingPreview } from '../StreamingPreview'
@@ -8,15 +8,19 @@ const VALID_EXTENSIONS = ['.txt', '.md']
 
 export function TranslatePage() {
   const { config, selectedGenre, setSelectedGenre, tasks, clearTasks } = useAppStore()
+  const {
+    inputDir, inputDirValid, outputDir, files, selectedFiles,
+    setInputDir, setOutputDir, setFiles, setSelectedFiles,
+    toggleFile, selectAllFiles, deselectAllFiles,
+  } = useAppStore()
   const [genres, setGenres] = useState<GenrePrompt[]>([])
-  const [selectedDir, setSelectedDir] = useState('')
-  const [files, setFiles] = useState<FileInfo[]>([])
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
+  const [inputDirChecked, setInputDirChecked] = useState(false)
   const [isTranslating, setIsTranslating] = useState(false)
   const [apiError, setApiError] = useState('')
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const dragCounter = useRef(0)
+  const inputDirDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     GetGenreList().then(setGenres).catch(() => setGenres([]))
@@ -25,13 +29,19 @@ export function TranslatePage() {
         if (list?.length) setSelectedGenre(list[0].id)
       })
     }
+    if (config?.outputDir && !outputDir) {
+      setOutputDir(config.outputDir)
+    }
+    if (inputDir && inputDirValid) {
+      loadFiles(inputDir)
+    }
   }, [])
 
   const taskList = Object.values(tasks)
   const activeTasks = taskList.filter(t => t.status === 'translating' || t.status === 'reviewing' || t.status === 'retrying')
   const doneTasks = taskList.filter(t => t.status === 'done' || t.status === 'cached')
   const errorTasks = taskList.filter(t => t.status === 'error')
-  const totalSelected = selectedFiles.size
+  const totalSelected = selectedFiles.length
   const overallProgress = totalSelected > 0
     ? taskList.reduce((sum, t) => sum + t.progress, 0) / totalSelected
     : 0
@@ -70,7 +80,8 @@ export function TranslatePage() {
       setApiError(`API key is empty for "${config.activeProvider}". Add it in Settings.`)
       return false
     }
-    if (!provider.model?.trim()) {
+    const activeModel = provider.defaultModel || provider.model
+    if (!activeModel?.trim()) {
       setApiError(`Model is empty for "${config.activeProvider}". Set it in Settings.`)
       return false
     }
@@ -78,15 +89,75 @@ export function TranslatePage() {
     return true
   }
 
-  const handleSelectDir = async () => {
+  const validateInputDir = async (dir: string) => {
+    if (!dir.trim()) {
+      setInputDir(dir, false)
+      setInputDirChecked(false)
+      return
+    }
+    setInputDirChecked(true)
+    const exists = await DirectoryExists(dir)
+    setInputDir(dir, exists)
+    if (exists) {
+      loadFiles(dir)
+      const defaultOutput = `${dir}/translated`
+      setOutputDir(defaultOutput)
+      try {
+        await UpdateConfig({ outputDir: defaultOutput })
+      } catch (e) {
+        console.error(e)
+      }
+    } else {
+      setFiles([])
+      setSelectedFiles([])
+    }
+  }
+
+  const handleInputDirChange = (value: string) => {
+    setInputDir(value, false)
+    setInputDirChecked(false)
+    if (inputDirDebounce.current) clearTimeout(inputDirDebounce.current)
+    inputDirDebounce.current = setTimeout(() => validateInputDir(value), 400)
+  }
+
+  const handleSelectInputDir = async () => {
     try {
       const dir = await SelectDirectory()
       if (dir) {
-        setSelectedDir(dir)
+        setInputDir(dir, true)
+        setInputDirChecked(true)
         loadFiles(dir)
+        const defaultOutput = `${dir}/translated`
+        setOutputDir(defaultOutput)
+        try {
+          await UpdateConfig({ outputDir: defaultOutput })
+        } catch (e) {
+          console.error(e)
+        }
       }
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  const handleOutputDirChange = async (value: string) => {
+    setOutputDir(value)
+    try {
+      await UpdateConfig({ outputDir: value })
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handleResetOutputDir = async () => {
+    if (inputDirValid) {
+      const defaultOutput = `${inputDir}/translated`
+      setOutputDir(defaultOutput)
+      try {
+        await UpdateConfig({ outputDir: defaultOutput })
+      } catch (e) {
+        console.error(e)
+      }
     }
   }
 
@@ -98,24 +169,16 @@ export function TranslatePage() {
       )
       validFiles.sort((a: FileInfo, b: FileInfo) => a.name.localeCompare(b.name, undefined, { numeric: true }))
       setFiles(validFiles)
-      setSelectedFiles(new Set(validFiles.map((f: FileInfo) => f.path)))
+      setSelectedFiles(validFiles.map((f: FileInfo) => f.path))
     } catch (e) {
       console.error(e)
       setFiles([])
+      setSelectedFiles([])
     }
   }
 
-  const toggleFile = (path: string) => {
-    setSelectedFiles(prev => {
-      const next = new Set(prev)
-      if (next.has(path)) next.delete(path)
-      else next.add(path)
-      return next
-    })
-  }
-
-  const selectAll = () => setSelectedFiles(new Set(files.map(f => f.path)))
-  const deselectAll = () => setSelectedFiles(new Set())
+  const selectAll = () => selectAllFiles()
+  const deselectAll = () => deselectAllFiles()
 
   const readDirectoryEntry = async (dirEntry: any): Promise<{ name: string; content: string }[]> => {
     const reader = dirEntry.createReader()
@@ -170,8 +233,16 @@ export function TranslatePage() {
 
     try {
       const tempDir = await ProcessDroppedFiles(droppedFiles)
-      setSelectedDir(tempDir)
+      setInputDir(tempDir, true)
+      setInputDirChecked(true)
       loadFiles(tempDir)
+      const defaultOutput = `${tempDir}/translated`
+      setOutputDir(defaultOutput)
+      try {
+        await UpdateConfig({ outputDir: defaultOutput })
+      } catch (e) {
+        console.error(e)
+      }
     } catch (e) {
       console.error(e)
     }
@@ -198,7 +269,7 @@ export function TranslatePage() {
   }, [])
 
   const handleTranslate = async () => {
-    const filesToTranslate = files.filter(f => selectedFiles.has(f.path))
+    const filesToTranslate = files.filter(f => selectedFiles.includes(f.path))
     if (filesToTranslate.length === 0) return
 
     if (!checkApiConfig()) return
@@ -248,18 +319,65 @@ export function TranslatePage() {
           )}
 
           <div className="space-y-4">
-            <button
-              onClick={handleSelectDir}
-              className="w-full h-10 rounded-md border border-border text-sm hover:bg-foreground/5 transition-colors text-left px-4 truncate"
-            >
-              {selectedDir || 'Select directory...'}
-            </button>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Input directory</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={inputDir}
+                  onChange={(e) => handleInputDirChange(e.target.value)}
+                  placeholder="Enter or select a directory..."
+                  className={`flex-1 h-10 px-4 rounded-md border text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 transition-colors ${
+                    inputDirChecked
+                      ? inputDirValid
+                        ? 'border-green-500/50 focus:ring-green-500/30'
+                        : 'border-red-500/50 focus:ring-red-500/30'
+                      : 'border-border focus:ring-foreground/20'
+                  }`}
+                />
+                <button
+                  onClick={handleSelectInputDir}
+                  className="h-10 px-4 rounded-md border border-border text-sm hover:bg-foreground/5 transition-colors flex items-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  Browse
+                </button>
+              </div>
+              {inputDirChecked && !inputDirValid && (
+                <p className="text-xs text-red-400">Directory does not exist</p>
+              )}
+              {inputDirChecked && inputDirValid && (
+                <p className="text-xs text-green-400">Directory found · {files.length} files</p>
+              )}
+            </div>
 
-            {selectedDir && (
+            {inputDirValid && (
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Output directory</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={outputDir}
+                    onChange={(e) => handleOutputDirChange(e.target.value)}
+                    placeholder="Output directory..."
+                    className="flex-1 h-10 px-4 rounded-md border border-border text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-foreground/20 transition-colors"
+                  />
+                  <button
+                    onClick={handleResetOutputDir}
+                    className="h-10 px-3 rounded-md border border-border text-xs hover:bg-foreground/5 transition-colors"
+                    title="Reset to default"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {inputDirValid && files.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">
-                    {files.length} files · {selectedFiles.size} selected
+                    {files.length} files · {selectedFiles.length} selected
                   </span>
                   <div className="flex gap-2">
                     <button onClick={selectAll} className="text-xs text-muted-foreground hover:text-foreground">
@@ -274,7 +392,7 @@ export function TranslatePage() {
                 <div className="space-y-0.5 max-h-48 overflow-y-auto">
                   {files.map((file) => {
                     const taskForFile = taskList.find(t => t.fileName === file.name)
-                    const isSelected = selectedFiles.has(file.path)
+                    const isSelected = selectedFiles.includes(file.path)
                     const taskStatus = taskForFile?.status
 
                     return (
@@ -324,10 +442,10 @@ export function TranslatePage() {
 
             <button
               onClick={handleTranslate}
-              disabled={isTranslating || selectedFiles.size === 0}
+              disabled={isTranslating || selectedFiles.length === 0}
               className="w-full h-10 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isTranslating ? 'Translating...' : `Translate${selectedFiles.size > 1 ? ` ${selectedFiles.size} files` : ''}`}
+              {isTranslating ? 'Translating...' : `Translate${selectedFiles.length > 1 ? ` ${selectedFiles.length} files` : ''}`}
             </button>
           </div>
 

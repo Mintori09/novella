@@ -23,5 +23,5 @@ type Provider interface {
 	Name() string
 	GenerateContent(ctx context.Context, prompt string, cfg GenerateConfig) (GenerateResult, error)
 	StreamContent(ctx context.Context, prompt string, cfg GenerateConfig) (<-chan string, <-chan error)
-	TestConnection(ctx context.Context, apiKey string) error
+	TestConnection(ctx context.Context, apiKey string, model string) error
 }

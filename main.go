@@ -90,6 +90,9 @@ func (a *App) UpdateConfig(updates map[string]interface{}) error {
 		if v, ok := updates["outputFormat"].(string); ok {
 			cfg.OutputFormat = v
 		}
+		if v, ok := updates["maxRetries"].(float64); ok {
+			cfg.MaxRetries = int(v)
+		}
 		if v, ok := updates["theme"].(string); ok {
 			cfg.Theme = v
 		}
@@ -108,6 +111,17 @@ func (a *App) UpdateConfig(updates map[string]interface{}) error {
 					}
 					if model, ok := pm["model"].(string); ok {
 						prov.Model = model
+					}
+					if models, ok := pm["models"].([]interface{}); ok {
+						prov.Models = make([]string, len(models))
+						for i, m := range models {
+							if s, ok := m.(string); ok {
+								prov.Models[i] = s
+							}
+						}
+					}
+					if defaultModel, ok := pm["defaultModel"].(string); ok {
+						prov.DefaultModel = defaultModel
 					}
 					if enabled, ok := pm["enabled"].(bool); ok {
 						prov.Enabled = enabled
@@ -142,11 +156,25 @@ func (a *App) GetProviders() map[string]models.APIProvider {
 			DefaultModel: "gpt-4o-mini",
 			APIKeyEnv:    "OPENAI_API_KEY",
 		},
+		"groq": {
+			ID:           "groq",
+			Name:         "Groq",
+			BaseURL:      "https://api.groq.com/openai/v1",
+			DefaultModel: "llama-3.3-70b-versatile",
+			APIKeyEnv:    "GROQ_API_KEY",
+		},
+		"gemini": {
+			ID:           "gemini",
+			Name:         "Google Gemini",
+			BaseURL:      "https://generativelanguage.googleapis.com/v1beta/openai",
+			DefaultModel: "gemini-2.0-flash",
+			APIKeyEnv:    "GEMINI_API_KEY",
+		},
 	}
 }
 
-func (a *App) TestConnection(providerID string, apiKey string) *models.TestConnectionResult {
-	result, _ := a.engine.TestProviderConnection(a.ctx, providerID, apiKey)
+func (a *App) TestConnection(providerID string, apiKey string, model string) *models.TestConnectionResult {
+	result, _ := a.engine.TestProviderConnection(a.ctx, providerID, apiKey, model)
 	return result
 }
 
@@ -168,6 +196,14 @@ func (a *App) StopAll() {
 
 func (a *App) GetTasks() []*models.TranslationTask {
 	return a.engine.GetTasks()
+}
+
+func (a *App) DirectoryExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
 }
 
 func (a *App) SelectDirectory() (string, error) {

@@ -1,6 +1,8 @@
 export interface ProviderConfig {
   apiKey: string;
   model: string;
+  models: string[];
+  defaultModel: string;
   enabled: boolean;
 }
 

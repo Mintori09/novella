@@ -11,18 +11,26 @@ import (
 	"novella/backend/models"
 )
 
-type OpenAIProvider struct {
-	baseURL string
+type OpenAICompatibleProvider struct {
+	name         string
+	baseURL      string
+	defaultModel string
 }
 
-func NewOpenAIProvider() *OpenAIProvider {
-	return &OpenAIProvider{
-		baseURL: "https://api.openai.com/v1",
+func NewOpenAICompatibleProvider(name, baseURL, defaultModel string) *OpenAICompatibleProvider {
+	return &OpenAICompatibleProvider{
+		name:         name,
+		baseURL:      baseURL,
+		defaultModel: defaultModel,
 	}
 }
 
-func (p *OpenAIProvider) Name() string {
-	return "openai"
+func NewOpenAIProvider() *OpenAICompatibleProvider {
+	return NewOpenAICompatibleProvider("openai", "https://api.openai.com/v1", "gpt-4o-mini")
+}
+
+func (p *OpenAICompatibleProvider) Name() string {
+	return p.name
 }
 
 type openAIRequest struct {
@@ -51,10 +59,10 @@ type openAIResponse struct {
 	} `json:"error,omitempty"`
 }
 
-func (p *OpenAIProvider) GenerateContent(ctx context.Context, prompt string, cfg GenerateConfig) (GenerateResult, error) {
+func (p *OpenAICompatibleProvider) GenerateContent(ctx context.Context, prompt string, cfg GenerateConfig) (GenerateResult, error) {
 	model := cfg.Model
 	if model == "" {
-		model = "gpt-4o-mini"
+		model = p.defaultModel
 	}
 	reqBody := openAIRequest{
 		Model: model,
@@ -120,7 +128,7 @@ func (p *OpenAIProvider) GenerateContent(ctx context.Context, prompt string, cfg
 	return result, nil
 }
 
-func (p *OpenAIProvider) StreamContent(ctx context.Context, prompt string, cfg GenerateConfig) (<-chan string, <-chan error) {
+func (p *OpenAICompatibleProvider) StreamContent(ctx context.Context, prompt string, cfg GenerateConfig) (<-chan string, <-chan error) {
 	ch := make(chan string)
 	errCh := make(chan error, 1)
 
@@ -130,7 +138,7 @@ func (p *OpenAIProvider) StreamContent(ctx context.Context, prompt string, cfg G
 
 		model := cfg.Model
 		if model == "" {
-			model = "gpt-4o-mini"
+			model = p.defaultModel
 		}
 		reqBody := openAIRequest{
 			Model: model,
@@ -219,9 +227,9 @@ func (p *OpenAIProvider) StreamContent(ctx context.Context, prompt string, cfg G
 	return ch, errCh
 }
 
-func (p *OpenAIProvider) TestConnection(ctx context.Context, apiKey string) error {
+func (p *OpenAICompatibleProvider) TestConnection(ctx context.Context, apiKey string, model string) error {
 	reqBody := openAIRequest{
-		Model: "gpt-4o-mini",
+		Model: model,
 		Messages: []message{
 			{Role: "user", Content: "test"},
 		},

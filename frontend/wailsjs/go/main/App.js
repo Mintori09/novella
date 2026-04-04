@@ -18,6 +18,10 @@ export function ClearCache() {
   return window['go']['main']['App']['ClearCache']();
 }
 
+export function DirectoryExists(arg1) {
+  return window['go']['main']['App']['DirectoryExists'](arg1);
+}
+
 export function GetCacheInfo() {
   return window['go']['main']['App']['GetCacheInfo']();
 }
@@ -90,8 +94,8 @@ export function StopAll() {
   return window['go']['main']['App']['StopAll']();
 }
 
-export function TestConnection(arg1, arg2) {
-  return window['go']['main']['App']['TestConnection'](arg1, arg2);
+export function TestConnection(arg1, arg2, arg3) {
+  return window['go']['main']['App']['TestConnection'](arg1, arg2, arg3);
 }
 
 export function TranslateFile(arg1, arg2) {

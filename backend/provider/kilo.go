@@ -225,9 +225,9 @@ func (p *KiloProvider) StreamContent(ctx context.Context, prompt string, cfg Gen
 	return ch, errCh
 }
 
-func (p *KiloProvider) TestConnection(ctx context.Context, apiKey string) error {
+func (p *KiloProvider) TestConnection(ctx context.Context, apiKey string, model string) error {
 	reqBody := kiloRequest{
-		Model: "kilo-auto/free",
+		Model: model,
 		Messages: []message{
 			{Role: "user", Content: "test"},
 		},
