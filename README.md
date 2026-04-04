@@ -1,5 +1,8 @@
 # novella
+
 Translate novel with API LLMs
+
+![Image](./image/demo.png)
 
 ## Live Development
 
