@@ -34,6 +34,7 @@ novella/
 ## Commands
 
 ### Go Backend
+
 ```bash
 wails dev          # Live dev mode (hot reload frontend + Go bridge)
 wails build        # Build production redistributable package
@@ -42,6 +43,7 @@ go test -run TestName ./backend/engine/  # Run a single Go test
 ```
 
 ### Frontend (run from `frontend/`)
+
 ```bash
 npm run dev        # Vite dev server (port 5173, strict port)
 npm run build      # Type-check (tsc) then build (vite build)
@@ -49,13 +51,16 @@ npm run preview    # Preview production build
 ```
 
 ### Testing
+
 **No tests currently exist.** No test framework is installed for frontend. If adding tests:
+
 - **Go:** Standard `go test` — place `*_test.go` files alongside source
 - **Frontend:** Would need to add Vitest/Jest + React Testing Library
 
 ## Code Style
 
 ### Go Backend
+
 - **Formatting:** `gofmt` (tabs for indentation)
 - **Imports:** Standard library first, then local packages, then third-party. Grouped in a single `import()` block with blank lines between groups. Local packages use full module path: `"novella/backend/models"`. Use aliases for disambiguation: `promptsmgr "novella/backend/prompts"`
 - **Naming:** Types/PascalCase (`AppConfig`), Interfaces use `-er` suffix (`Provider`), exported functions PascalCase, unexported camelCase, variables camelCase, constants UPPER_SNAKE_CASE
@@ -65,6 +70,7 @@ npm run preview    # Preview production build
 - **No `any` types** — use specific types or interfaces
 
 ### TypeScript Frontend
+
 - **Formatting:** Consistent quote style (prefer single quotes), semicolons, trailing commas
 - **Imports:** External libraries first, then local. Use `import type { ... }` for type-only imports
 - **Naming:** Components PascalCase (`TranslatePage`), hooks camelCase with `use` prefix (`useAppStore`), types/interfaces PascalCase, variables/functions camelCase, constants UPPER_SNAKE_CASE
@@ -75,6 +81,7 @@ npm run preview    # Preview production build
 - **TypeScript config:** `strict: false` — but prefer explicit types. Avoid `any`; use proper interfaces from `types/index.ts`
 
 ### General
+
 - **No ESLint/Prettier config exists** — follow existing file conventions
 - **No `.cursorrules`, `.cursor/rules/`, or `.github/copilot-instructions.md` exist**
 - Keep components small; define helper components in the same file

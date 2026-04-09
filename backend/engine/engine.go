@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"novella/backend/cache"
@@ -25,19 +26,28 @@ import (
 )
 
 type Engine struct {
-	cfgManager  *config.Manager
-	chunker     *Chunker
-	glossaryMgr *glossary.Manager
-	cacheMgr    *cache.Manager
-	promptMgr   *promptsmgr.Manager
-	provider    provider.Provider
-	mu          sync.Mutex
-	tasks       map[string]*models.TranslationTask
-	cancelFuncs map[string]context.CancelFunc
+	cfgManager    *config.Manager
+	chunker       *Chunker
+	glossaryMgr   *glossary.Manager
+	cacheMgr      *cache.Manager
+	promptMgr     *promptsmgr.Manager
+	provider      provider.Provider
+	mu            sync.Mutex
+	tasks         map[string]*models.TranslationTask
+	cancelFuncs   map[string]context.CancelFunc
+	activeWorkers atomic.Int64
+	maxWorkers    atomic.Int64
 }
 
 func NewEngine(cfgManager *config.Manager, glossaryMgr *glossary.Manager, cacheMgr *cache.Manager, promptMgr *promptsmgr.Manager) *Engine {
-	return &Engine{
+	maxW := cfgManager.Get().WorkerCount
+	if maxW < 1 {
+		maxW = 1
+	}
+	if maxW > 10 {
+		maxW = 10
+	}
+	e := &Engine{
 		cfgManager:  cfgManager,
 		chunker:     NewChunker(cfgManager.Get().ChunkSize),
 		glossaryMgr: glossaryMgr,
@@ -46,6 +56,18 @@ func NewEngine(cfgManager *config.Manager, glossaryMgr *glossary.Manager, cacheM
 		tasks:       make(map[string]*models.TranslationTask),
 		cancelFuncs: make(map[string]context.CancelFunc),
 	}
+	e.maxWorkers.Store(int64(maxW))
+	return e
+}
+
+func (e *Engine) UpdateMaxWorkers(count int) {
+	if count < 1 {
+		count = 1
+	}
+	if count > 10 {
+		count = 10
+	}
+	e.maxWorkers.Store(int64(count))
 }
 
 func calcProgress(processedChars, totalChars int, isReviewing bool, enableReview bool) float64 {
@@ -139,6 +161,10 @@ func (e *Engine) getProvider() (provider.Provider, models.ProviderConfig, error)
 		return p, provCfg, nil
 	case "gemini":
 		p := provider.NewGeminiProvider()
+		e.provider = p
+		return p, provCfg, nil
+	case "nanogpt":
+		p := provider.NewNanoGPTProvider()
 		e.provider = p
 		return p, provCfg, nil
 	case "custom":
@@ -481,23 +507,17 @@ func (e *Engine) translateSingleFile(ctx context.Context, inputPath string, genr
 }
 
 func (e *Engine) TranslateFiles(ctx context.Context, paths []string, genre string) {
-	maxConcurrent := e.cfgManager.Get().WorkerCount
-	if maxConcurrent < 1 {
-		maxConcurrent = 1
-	}
-	if maxConcurrent > 10 {
-		maxConcurrent = 10
-	}
-
-	sem := make(chan struct{}, maxConcurrent)
 	var wg sync.WaitGroup
 
 	for _, path := range paths {
-		sem <- struct{}{}
+		for e.activeWorkers.Load() >= e.maxWorkers.Load() {
+			time.Sleep(10 * time.Millisecond)
+		}
+		e.activeWorkers.Add(1)
 		wg.Add(1)
 		go func(p string) {
 			defer wg.Done()
-			defer func() { <-sem }()
+			defer e.activeWorkers.Add(-1)
 			e.translateSingleFile(ctx, p, genre)
 		}(path)
 	}
@@ -549,6 +569,8 @@ func (e *Engine) TestProviderConnection(ctx context.Context, providerID string, 
 		p = provider.NewGroqProvider()
 	case "gemini":
 		p = provider.NewGeminiProvider()
+	case "nanogpt":
+		p = provider.NewNanoGPTProvider()
 	case "custom":
 		if provCfg, ok := e.cfgManager.Get().Providers["custom"]; ok && provCfg.CustomURL != "" {
 			method := provCfg.Method

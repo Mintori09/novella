@@ -37,7 +37,7 @@ type App struct {
 func NewApp() *App {
 	homeDir, _ := os.UserHomeDir()
 	configDir := filepath.Join(homeDir, ".config", "novella")
-	os.MkdirAll(configDir, 0755)
+	os.MkdirAll(configDir, 0o755)
 
 	cfgPath := filepath.Join(configDir, "config.json")
 	cfg, _ := config.NewManager(cfgPath)
@@ -77,6 +77,7 @@ func (a *App) UpdateConfig(updates map[string]interface{}) error {
 		}
 		if v, ok := updates["workerCount"].(float64); ok {
 			cfg.WorkerCount = int(v)
+			a.engine.UpdateMaxWorkers(int(v))
 		}
 		if v, ok := updates["chunkSize"].(float64); ok {
 			cfg.ChunkSize = int(v)
@@ -175,6 +176,13 @@ func (a *App) GetProviders() map[string]models.APIProvider {
 			BaseURL:      "https://generativelanguage.googleapis.com/v1beta/openai",
 			DefaultModel: "gemini-2.0-flash",
 			APIKeyEnv:    "GEMINI_API_KEY",
+		},
+		"nanogpt": {
+			ID:           "nanogpt",
+			Name:         "Nano GPT",
+			BaseURL:      "https://nano-gpt.com/api/v1",
+			DefaultModel: "",
+			APIKeyEnv:    "NANOGPT_API_KEY",
 		},
 		"custom": {
 			ID:           "custom",
@@ -346,7 +354,7 @@ type DroppedFile struct {
 func (a *App) ProcessDroppedFiles(droppedFiles []DroppedFile) (string, error) {
 	tempDir := filepath.Join(a.cacheMgr.Dir(), "drop-temp")
 	os.RemoveAll(tempDir)
-	os.MkdirAll(tempDir, 0755)
+	os.MkdirAll(tempDir, 0o755)
 
 	for _, f := range droppedFiles {
 		if f.Name == "" {
@@ -354,7 +362,7 @@ func (a *App) ProcessDroppedFiles(droppedFiles []DroppedFile) (string, error) {
 		}
 		safeName := filepath.Base(f.Name)
 		path := filepath.Join(tempDir, safeName)
-		if err := os.WriteFile(path, []byte(f.Content), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(f.Content), 0o644); err != nil {
 			return "", err
 		}
 	}
@@ -385,7 +393,6 @@ func main() {
 			ProgramName: "novella",
 		},
 	})
-
 	if err != nil {
 		println("Error:", err.Error())
 	}

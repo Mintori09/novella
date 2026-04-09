@@ -69,6 +69,13 @@ func defaultConfig() *models.AppConfig {
 				DefaultModel: "gemini-2.0-flash",
 				Enabled:      false,
 			},
+			"nanogpt": {
+				APIKey:       "",
+				Model:        "zai-org/glm-5",
+				Models:       []string{"zai-org/glm-5"},
+				DefaultModel: "zai-org/glm-5",
+				Enabled:      false,
+			},
 			"custom": {
 				APIKey:       "",
 				Model:        "",

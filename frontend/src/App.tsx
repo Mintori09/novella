@@ -84,10 +84,13 @@ export default function App() {
               id,
               {
                 ...p,
-                models: (p as any).models || (p as any).model ? [(p as any).model] : [],
+                models:
+                  (p as any).models || (p as any).model
+                    ? [(p as any).model]
+                    : [],
                 defaultModel: (p as any).defaultModel || (p as any).model || "",
               },
-            ])
+            ]),
           ),
         };
         setConfig(normalized as any);
