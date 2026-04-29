@@ -239,7 +239,7 @@ func (e *Engine) translateSingleFile(ctx context.Context, inputPath string, genr
 		if outputDir == "" {
 			outputDir = filepath.Dir(inputPath)
 		}
-		os.MkdirAll(outputDir, 0755)
+		os.MkdirAll(outputDir, 0o755)
 
 		baseName := strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath))
 		outputFormat := cfg.OutputFormat
@@ -478,7 +478,7 @@ func (e *Engine) translateSingleFile(ctx context.Context, inputPath string, genr
 		if outputDir == "" {
 			outputDir = filepath.Dir(inputPath)
 		}
-		os.MkdirAll(outputDir, 0755)
+		os.MkdirAll(outputDir, 0o755)
 
 		baseName := strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath))
 		outputFormat := cfg.OutputFormat

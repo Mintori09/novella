@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -91,12 +92,7 @@ func (c *Chunker) splitLongParagraph(para string) []string {
 }
 
 func containsRune(runes []rune, r rune) bool {
-	for _, rr := range runes {
-		if rr == r {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(runes, r)
 }
 
 func IsCJK(r rune) bool {
