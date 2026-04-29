@@ -23,7 +23,7 @@ type Manager struct {
 }
 
 func NewManager(embedFS embed.FS, customDir string) *Manager {
-	os.MkdirAll(customDir, 0755)
+	os.MkdirAll(customDir, 0o755)
 	return &Manager{
 		embedFS:   embedFS,
 		customDir: customDir,
@@ -115,7 +115,7 @@ func (m *Manager) AddGenre(id string, name string, content string) error {
 	}
 
 	fileContent := buildCustomFile(name, content)
-	return os.WriteFile(path, []byte(fileContent), 0644)
+	return os.WriteFile(path, []byte(fileContent), 0o644)
 }
 
 func (m *Manager) UpdateGenre(id string, content string) error {
@@ -125,7 +125,7 @@ func (m *Manager) UpdateGenre(id string, content string) error {
 		if err != nil {
 			return err
 		}
-		return os.WriteFile(path, []byte(buildCustomFile(existing.Name, content)), 0644)
+		return os.WriteFile(path, []byte(buildCustomFile(existing.Name, content)), 0o644)
 	}
 
 	path := filepath.Join(m.customDir, id+".md")
@@ -139,7 +139,7 @@ func (m *Manager) UpdateGenre(id string, content string) error {
 		name = formatLabel(id)
 	}
 
-	return os.WriteFile(path, []byte(buildCustomFile(name, content)), 0644)
+	return os.WriteFile(path, []byte(buildCustomFile(name, content)), 0o644)
 }
 
 func (m *Manager) RemoveGenre(id string) error {
