@@ -53,3 +53,4 @@ wailsjs
 debug
 debug.test
 build
+.aider*
