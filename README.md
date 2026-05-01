@@ -11,3 +11,32 @@ To run in live development mode, run `wails dev` in the project directory. This 
 ## Building
 
 To build a redistributable, production mode package, use `wails build`.
+
+## Nix
+
+Use `nix develop` to enter a shell that can run the app immediately.
+
+```bash
+nix develop
+```
+
+If you want the shell without auto-starting the app:
+
+```bash
+NOVELLA_NO_AUTORUN=1 nix develop
+```
+
+You can also launch the dev app directly:
+
+```bash
+nix run
+```
+
+Use the GitHub flake directly:
+
+```bash
+nix run github:mintori09/novella
+nix profile install github:mintori09/novella
+```
+
+`nix run` starts the app from the remote flake. `nix profile install` installs the `novella` launcher into your profile.
