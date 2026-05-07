@@ -9,5 +9,8 @@
   "author": {
     "name": "Mintori09",
     "email": "tvmthtr@gmail.com"
+  },
+  "build": {
+    "tags": "webkit2_41"
   }
 }

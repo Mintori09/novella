@@ -12,6 +12,15 @@ To run in live development mode, run `wails dev` in the project directory. This 
 
 To build a redistributable, production mode package, use `wails build`.
 
+For an RPM package on Linux:
+
+```bash
+nfpm package --version
+just rpm
+```
+
+This expects `nfpm` to be installed on the host and writes the RPM artifact to `dist/rpm/`.
+
 ## Nix
 
 Use `nix develop` to enter a shell that can run the app immediately.

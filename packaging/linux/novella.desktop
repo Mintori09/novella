@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Novella
+Comment=AI-powered literary translation desktop app
+Exec=novella
+Icon=novella
+Terminal=false
+Categories=Office;Utility;
+StartupNotify=true

@@ -54,3 +54,6 @@ debug
 debug.test
 build
 .aider*
+.dist
+.codex
+dist/
