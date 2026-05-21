@@ -1,5 +1,8 @@
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
+run:
+    wails dev -tags webkit2_41
+
 build:
     wails build -clean -tags webkit2_41
 
