@@ -133,6 +133,12 @@ func (a *App) UpdateConfig(updates map[string]interface{}) error {
 					if method, ok := pm["method"].(string); ok {
 						prov.Method = method
 					}
+					if command, ok := pm["command"].(string); ok {
+						prov.Command = command
+					}
+					if args, ok := pm["args"].(string); ok {
+						prov.Args = args
+					}
 					cfg.Providers[id] = prov
 				}
 			}
@@ -190,6 +196,13 @@ func (a *App) GetProviders() map[string]models.APIProvider {
 			BaseURL:      "",
 			DefaultModel: "",
 			APIKeyEnv:    "CUSTOM_API_KEY",
+		},
+		"antigravity-cli": {
+			ID:           "antigravity-cli",
+			Name:         "Antigravity CLI",
+			BaseURL:      "local://cli",
+			DefaultModel: "",
+			APIKeyEnv:    "",
 		},
 	}
 }

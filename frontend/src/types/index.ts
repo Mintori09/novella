@@ -6,6 +6,8 @@ export interface ProviderConfig {
   enabled: boolean;
   customUrl: string;
   method: string;
+  command: string;
+  args: string;
 }
 
 export interface AppConfig {

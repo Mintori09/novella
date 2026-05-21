@@ -8,6 +8,8 @@ type ProviderConfig struct {
 	Enabled      bool     `json:"enabled"`
 	CustomURL    string   `json:"customUrl"`
 	Method       string   `json:"method"`
+	Command      string   `json:"command"`
+	Args         string   `json:"args"`
 }
 
 type AppConfig struct {

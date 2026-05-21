@@ -41,6 +41,8 @@ export namespace models {
 	    enabled: boolean;
 	    customUrl: string;
 	    method: string;
+	    command: string;
+	    args: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ProviderConfig(source);
@@ -55,6 +57,8 @@ export namespace models {
 	        this.enabled = source["enabled"];
 	        this.customUrl = source["customUrl"];
 	        this.method = source["method"];
+	        this.command = source["command"];
+	        this.args = source["args"];
 	    }
 	}
 	export class AppConfig {

@@ -25,6 +25,23 @@ export function ApiKeysTab() {
     {},
   );
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const getDefaultProviderConfig = (id: string, provider?: APIProvider): ProviderConfig => ({
+    apiKey: "",
+    model: provider?.defaultModel || "",
+    models: provider?.defaultModel ? [provider.defaultModel] : [],
+    defaultModel: provider?.defaultModel || "",
+    enabled: false,
+    customUrl: provider?.baseUrl || "",
+    method: "POST",
+    command: id === "antigravity-cli" ? "agy" : "",
+    args: "",
+  });
+
+  const getProviderConfig = (id: string): ProviderConfig => {
+    const existing = providers[id];
+    if (existing) return existing;
+    return getDefaultProviderConfig(id, apiProviders[id]);
+  };
 
   useEffect(() => {
     loadConfig();
@@ -43,6 +60,8 @@ export function ApiKeysTab() {
           enabled: p.enabled ?? false,
           customUrl: (p as any).customUrl || "",
           method: (p as any).method || "POST",
+          command: (p as any).command || (id === "antigravity-cli" ? "agy" : ""),
+          args: (p as any).args || "",
         };
       }
       setProviders(normalizedProviders);
@@ -68,19 +87,28 @@ export function ApiKeysTab() {
   };
 
   const handleApiKeyChange = async (id: string, apiKey: string) => {
-    await saveProvider(id, { ...providers[id], apiKey });
+    await saveProvider(id, { ...getProviderConfig(id), apiKey });
   };
 
   const handleCustomUrlChange = async (id: string, customUrl: string) => {
-    await saveProvider(id, { ...providers[id], customUrl });
+    await saveProvider(id, { ...getProviderConfig(id), customUrl });
   };
 
   const handleMethodChange = async (id: string, method: string) => {
-    await saveProvider(id, { ...providers[id], method });
+    await saveProvider(id, { ...getProviderConfig(id), method });
+  };
+
+  const handleCommandChange = async (id: string, command: string) => {
+    await saveProvider(id, { ...getProviderConfig(id), command });
+  };
+
+  const handleArgsChange = async (id: string, args: string) => {
+    await saveProvider(id, { ...getProviderConfig(id), args });
   };
 
   const handleToggleEnabled = async (id: string) => {
-    await saveProvider(id, { ...providers[id], enabled: !providers[id].enabled });
+    const current = getProviderConfig(id);
+    await saveProvider(id, { ...current, enabled: !current.enabled });
   };
 
   const handleSetActive = async (id: string) => {
@@ -94,7 +122,7 @@ export function ApiKeysTab() {
   const handleAddModel = async (id: string) => {
     const model = newModelInput[id]?.trim();
     if (!model) return;
-    const prov = providers[id];
+    const prov = getProviderConfig(id);
     if (prov.models.includes(model)) {
       setNewModelInput((prev) => ({ ...prev, [id]: "" }));
       return;
@@ -109,7 +137,7 @@ export function ApiKeysTab() {
   };
 
   const handleRemoveModel = async (id: string, modelToRemove: string) => {
-    const prov = providers[id];
+    const prov = getProviderConfig(id);
     const updatedModels = prov.models.filter((m) => m !== modelToRemove);
     let updatedDefault = prov.defaultModel;
     if (prov.defaultModel === modelToRemove) {
@@ -123,7 +151,7 @@ export function ApiKeysTab() {
   };
 
   const handleSetDefaultModel = async (id: string, model: string) => {
-    await saveProvider(id, { ...providers[id], defaultModel: model });
+    await saveProvider(id, { ...getProviderConfig(id), defaultModel: model });
   };
 
   const handleNewModelKeyDown = (id: string, e: React.KeyboardEvent) => {
@@ -134,8 +162,9 @@ export function ApiKeysTab() {
   };
 
   const handleTest = async (id: string) => {
-    const config = providers[id];
-    if (!config?.apiKey?.trim()) {
+    const config = getProviderConfig(id);
+    const isAntigravityCLI = id === "antigravity-cli";
+    if (!isAntigravityCLI && !config?.apiKey?.trim()) {
       setTestResults((prev) => ({
         ...prev,
         [id]: { success: false, message: "API key is required" },
@@ -143,7 +172,7 @@ export function ApiKeysTab() {
       return;
     }
     const modelToTest = config.defaultModel || config.model;
-    if (!modelToTest?.trim()) {
+    if (!isAntigravityCLI && !modelToTest?.trim()) {
       setTestResults((prev) => ({
         ...prev,
         [id]: { success: false, message: "No model selected" },
@@ -175,15 +204,8 @@ export function ApiKeysTab() {
 
       <div className="space-y-3">
         {Object.entries(apiProviders).map(([id, provider]) => {
-          const config = providers[id] || {
-            apiKey: "",
-            model: provider.defaultModel,
-            models: [provider.defaultModel],
-            defaultModel: provider.defaultModel,
-            enabled: false,
-            customUrl: provider.baseUrl || "",
-            method: "POST",
-          };
+          const isAntigravityCLI = id === "antigravity-cli";
+          const config = providers[id] || getDefaultProviderConfig(id, provider);
           const isTested = testResults[id];
           const modelList = config.models.length > 0 ? config.models : [config.model || provider.defaultModel].filter(Boolean);
 
@@ -254,63 +276,89 @@ export function ApiKeysTab() {
                     </div>
                   </>
                 )}
-                <input
-                  type="password"
-                  value={config.apiKey}
-                  onChange={(e) => handleApiKeyChange(id, e.target.value)}
-                  placeholder={`API Key`}
-                  className="w-full h-8 px-3 rounded-md border border-border bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-foreground/20"
-                />
+                {isAntigravityCLI && (
+                  <>
+                    <input
+                      type="text"
+                      value={config.command || ""}
+                      onChange={(e) => handleCommandChange(id, e.target.value)}
+                      placeholder="Command (default: agy)"
+                      className="w-full h-8 px-3 rounded-md border border-border bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-foreground/20 font-mono"
+                    />
+                    <input
+                      type="text"
+                      value={config.args || ""}
+                      onChange={(e) => handleArgsChange(id, e.target.value)}
+                      placeholder='Args (e.g. translate --to vi)'
+                      className="w-full h-8 px-3 rounded-md border border-border bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-foreground/20 font-mono"
+                    />
+                  </>
+                )}
+                {!isAntigravityCLI && (
+                  <input
+                    type="password"
+                    value={config.apiKey}
+                    onChange={(e) => handleApiKeyChange(id, e.target.value)}
+                    placeholder={`API Key`}
+                    className="w-full h-8 px-3 rounded-md border border-border bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-foreground/20"
+                  />
+                )}
 
-                <div className="flex flex-wrap gap-1.5">
-                  {modelList.map((model) => (
-                    <button
-                      key={model}
-                      onClick={() => handleSetDefaultModel(id, model)}
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-mono transition-colors ${
-                        config.defaultModel === model
-                          ? "bg-foreground text-background"
-                          : "bg-foreground/5 text-muted-foreground hover:text-foreground border border-border"
-                      }`}
-                      title={config.defaultModel === model ? "Default model (click to change)" : "Click to set as default"}
-                    >
-                      {model}
-                      <span
-                        role="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveModel(id, model);
-                        }}
-                        className="ml-0.5 opacity-60 hover:opacity-100"
+                {!isAntigravityCLI && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {modelList.map((model) => (
+                      <button
+                        key={model}
+                        onClick={() => handleSetDefaultModel(id, model)}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-mono transition-colors ${
+                          config.defaultModel === model
+                            ? "bg-foreground text-background"
+                            : "bg-foreground/5 text-muted-foreground hover:text-foreground border border-border"
+                        }`}
+                        title={config.defaultModel === model ? "Default model (click to change)" : "Click to set as default"}
                       >
-                        ×
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                        {model}
+                        <span
+                          role="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveModel(id, model);
+                          }}
+                          className="ml-0.5 opacity-60 hover:opacity-100"
+                        >
+                          ×
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 <div className="flex gap-2">
-                  <input
-                    ref={(el) => { inputRefs.current[id] = el; }}
-                    type="text"
-                    value={newModelInput[id] || ""}
-                    onChange={(e) =>
-                      setNewModelInput((prev) => ({ ...prev, [id]: e.target.value }))
-                    }
-                    onKeyDown={(e) => handleNewModelKeyDown(id, e)}
-                    placeholder="Add model ID..."
-                    className="flex-1 h-8 px-3 rounded-md border border-border bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-foreground/20 font-mono"
-                  />
-                  <button
-                    onClick={() => handleAddModel(id)}
-                    className="h-8 px-3 rounded-md text-xs border border-border hover:bg-foreground/5 transition-colors"
-                  >
-                    Add
-                  </button>
+                  {!isAntigravityCLI && (
+                    <>
+                      <input
+                        ref={(el) => { inputRefs.current[id] = el; }}
+                        type="text"
+                        value={newModelInput[id] || ""}
+                        onChange={(e) =>
+                          setNewModelInput((prev) => ({ ...prev, [id]: e.target.value }))
+                        }
+                        onKeyDown={(e) => handleNewModelKeyDown(id, e)}
+                        placeholder="Add model ID..."
+                        className="flex-1 h-8 px-3 rounded-md border border-border bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-foreground/20 font-mono"
+                      />
+                      <button
+                        onClick={() => handleAddModel(id)}
+                        className="h-8 px-3 rounded-md text-xs border border-border hover:bg-foreground/5 transition-colors"
+                      >
+                        Add
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={() => handleTest(id)}
                     disabled={testing === id}
-                    className="h-8 px-3 rounded-md text-xs border border-border hover:bg-foreground/5 transition-colors disabled:opacity-50"
+                    className={`${isAntigravityCLI ? "flex-1" : ""} h-8 px-3 rounded-md text-xs border border-border hover:bg-foreground/5 transition-colors disabled:opacity-50`}
                   >
                     {testing === id ? "..." : "Test"}
                   </button>

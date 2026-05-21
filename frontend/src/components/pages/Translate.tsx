@@ -76,12 +76,13 @@ export function TranslatePage() {
       setApiError(`Provider "${config.activeProvider}" is disabled. Enable it in Settings.`)
       return false
     }
-    if (!provider.apiKey?.trim()) {
+    const isAntigravityCLI = config.activeProvider === 'antigravity-cli'
+    if (!isAntigravityCLI && !provider.apiKey?.trim()) {
       setApiError(`API key is empty for "${config.activeProvider}". Add it in Settings.`)
       return false
     }
     const activeModel = provider.defaultModel || provider.model
-    if (!activeModel?.trim()) {
+    if (!isAntigravityCLI && !activeModel?.trim()) {
       setApiError(`Model is empty for "${config.activeProvider}". Set it in Settings.`)
       return false
     }

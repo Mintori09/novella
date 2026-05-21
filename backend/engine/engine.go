@@ -178,6 +178,10 @@ func (e *Engine) getProvider() (provider.Provider, models.ProviderConfig, error)
 		p := provider.NewCustomProvider(provCfg.CustomURL, method)
 		e.provider = p
 		return p, provCfg, nil
+	case "antigravity-cli":
+		p := provider.NewAntigravityCLIProvider(provCfg.Command, provCfg.Args)
+		e.provider = p
+		return p, provCfg, nil
 	default:
 		return nil, provCfg, fmt.Errorf("unknown provider: %s", activeID)
 	}
@@ -319,6 +323,8 @@ func (e *Engine) translateSingleFile(ctx context.Context, inputPath string, genr
 			MaxTokens:    4096,
 			Model:        provCfg.Model,
 			APIKey:       provCfg.APIKey,
+			Command:      provCfg.Command,
+			Args:         provCfg.Args,
 		}
 
 		result, err := prov.GenerateContent(taskCtx, extractPrompt, genCfg)
@@ -358,6 +364,8 @@ func (e *Engine) translateSingleFile(ctx context.Context, inputPath string, genr
 			MaxTokens:    8192,
 			Model:        provCfg.Model,
 			APIKey:       provCfg.APIKey,
+			Command:      provCfg.Command,
+			Args:         provCfg.Args,
 		}
 
 		var result provider.GenerateResult
@@ -428,6 +436,8 @@ func (e *Engine) translateSingleFile(ctx context.Context, inputPath string, genr
 			MaxTokens:    16384,
 			Model:        provCfg.Model,
 			APIKey:       provCfg.APIKey,
+			Command:      provCfg.Command,
+			Args:         provCfg.Args,
 		}
 
 		var lastErr error
@@ -581,6 +591,12 @@ func (e *Engine) TestProviderConnection(ctx context.Context, providerID string, 
 		} else {
 			return &models.TestConnectionResult{Success: false, Message: "Custom provider URL not configured"}, nil
 		}
+	case "antigravity-cli":
+		provCfg, ok := e.cfgManager.Get().Providers["antigravity-cli"]
+		if !ok {
+			return &models.TestConnectionResult{Success: false, Message: "Antigravity CLI provider not configured"}, nil
+		}
+		p = provider.NewAntigravityCLIProvider(provCfg.Command, provCfg.Args)
 	default:
 		return &models.TestConnectionResult{Success: false, Message: "Unknown provider"}, nil
 	}

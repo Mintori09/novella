@@ -12,6 +12,8 @@ type GenerateConfig struct {
 	SystemPrompt string
 	Model        string
 	APIKey       string
+	Command      string
+	Args         string
 }
 
 type GenerateResult struct {
